@@ -1,17 +1,12 @@
 {
   "manifest_version": 3,
-  "name": "YT Music Section Hider",
-  "version": "1.0",
-  "description": "Hide specific sections on YouTube Music home feed.",
+  "name": "YT Music Focus Mode",
+  "version": "2.0",
+  "description": "Show ONLY specific sections and hide Explore.",
   "permissions": ["storage"],
   "host_permissions": ["https://music.youtube.com/*"],
   "action": {
-    "default_popup": "popup.html",
-    "default_icon": {
-      "16": "icon.png", 
-      "48": "icon.png",
-      "128": "icon.png"
-    }
+    "default_popup": "popup.html"
   },
   "content_scripts": [
     {

@@ -1,33 +1,20 @@
-const sections = [
-  "Music videos for you",
-  "From the community",
-  "Featured playlists for you",
-  "Rock",
-  "Forgotten favorites",
-  "Mixed for you",
-  "Albums for you",
-  "New releases",
-  "Fresh finds, old favorites",
-  "Live performances",
-  "Long listens",
-  "Covers and remixes",
-  "Charts",
-  "Quick picks",
-  "Year end bangers 💥",
-  "Create a mix",
-  "Your daily discover",
-  "Trending songs for you",
-  "Music channels you may like",
-  "Trending in Shorts"
+// The ONLY sections allowed to exist
+const allowedList = [
+  "Listen again",
+  "Keep listening",
+  "Your shows",
+  "Shows for you",
+  "From your library"
 ];
 
 const container = document.getElementById('options-list');
 
-// 1. Load saved settings and build checkboxes
-chrome.storage.sync.get(['hiddenSections'], (result) => {
-  const hidden = result.hiddenSections || [];
+// 1. Load saved settings
+chrome.storage.sync.get(['allowedSections'], (result) => {
+  // Default: If nothing saved yet, check them all so the user sees something initially
+  const allowed = result.allowedSections || allowedList;
 
-  sections.forEach(section => {
+  allowedList.forEach(section => {
     const wrapper = document.createElement('div');
     wrapper.className = 'checkbox-container';
 
@@ -36,8 +23,8 @@ chrome.storage.sync.get(['hiddenSections'], (result) => {
     checkbox.id = section;
     checkbox.value = section;
     
-    // If it's in storage, check the box
-    if (hidden.includes(section)) {
+    // If it is in the allowed list, check the box
+    if (allowed.includes(section)) {
       checkbox.checked = true;
     }
 
@@ -51,7 +38,7 @@ chrome.storage.sync.get(['hiddenSections'], (result) => {
   });
 });
 
-// 2. Save settings when button is clicked
+// 2. Save settings
 document.getElementById('save-btn').addEventListener('click', () => {
   const checkboxes = container.querySelectorAll('input[type="checkbox"]');
   const selected = [];
@@ -62,13 +49,12 @@ document.getElementById('save-btn').addEventListener('click', () => {
     }
   });
 
-  chrome.storage.sync.set({ hiddenSections: selected }, () => {
-    // Send message to content script to update immediately
+  chrome.storage.sync.set({ allowedSections: selected }, () => {
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       if (tabs[0]) {
         chrome.tabs.sendMessage(tabs[0].id, { action: "updateLayout" });
       }
     });
-    window.close(); // Close popup after saving
+    window.close();
   });
 });
