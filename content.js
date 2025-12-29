@@ -1,6 +1,6 @@
 let allowedSections = [];
 
-// Define the sections to KEEP (Default fallback)
+// Default list of sections to KEEP
 const defaultAllowed = [
   "Listen again",
   "Keep listening",
@@ -9,14 +9,11 @@ const defaultAllowed = [
   "From your library"
 ];
 
-// Main function to clean up the interface
 function cleanPage() {
   const url = window.location.href;
-  const isSearchPage = url.includes('/search');
-  const isExplorePage = url.includes('/explore');
+  const pathname = window.location.pathname;
 
-  // --- 1. HANDLE EXPLORE BUTTON (Global) ---
-  // We always hide the Explore button in the sidebar/nav
+  // 1. GLOBAL: Remove Explore Button (Always)
   const exploreTab = document.querySelector('ytmusic-guide-entry-renderer a[href="/explore"]'); 
   if (exploreTab) {
     const parent = exploreTab.closest('ytmusic-guide-entry-renderer');
@@ -25,55 +22,70 @@ function cleanPage() {
   const explorePivot = document.querySelector('ytmusic-pivot-bar-item-renderer[tab-id="FEmusic_explore"]');
   if (explorePivot) explorePivot.style.display = 'none';
 
-  // --- 2. SEARCH PAGE PROTECTION ---
-  // If we are on the Search page, we must UNHIDE everything immediately
-  if (isSearchPage) {
-    const allShelves = document.querySelectorAll('ytmusic-carousel-shelf-renderer, ytmusic-immersive-carousel-shelf-renderer, ytmusic-shelf-renderer, ytmusic-grid-renderer, ytmusic-chip-cloud-renderer');
-    allShelves.forEach(shelf => {
-      shelf.style.display = ''; // Reset to default (Visible)
+
+  // 2. INTELLIGENT HOME PAGE DETECTION
+  // We consider it "Home" ONLY if:
+  // A) The path is exactly "/" (root)
+  // B) OR the URL contains the specific Home ID "FEmusic_home"
+  const isRoot = pathname === '/';
+  const isHomeId = url.includes('FEmusic_home');
+  
+  // We explicitly confirm it is NOT a Search, Playlist, or Watch page
+  // (This prevents false positives)
+  const isHomePage = (isRoot || isHomeId) 
+                     && !url.includes('/search')
+                     && !url.includes('/playlist')
+                     && !url.includes('/watch')
+                     && !url.includes('/channel');
+
+
+  // 3. IF NOT HOME: SHOW EVERYTHING (Fix for Playlists/Search)
+  if (!isHomePage) {
+    const hiddenElements = document.querySelectorAll('[data-yt-extension-hidden="true"]');
+    
+    // Unhide everything we previously hid
+    hiddenElements.forEach(el => {
+      el.style.display = '';
+      el.removeAttribute('data-yt-extension-hidden');
     });
-    return; // STOP HERE. Do not hide anything else.
+    return; // Stop here
   }
 
-  // --- 3. HOME PAGE FILTERING ---
-  // If we are NOT on search, we filter the shelves
+
+  // 4. HOME PAGE LOGIC (Filter the content)
   const shelves = document.querySelectorAll('ytmusic-carousel-shelf-renderer, ytmusic-immersive-carousel-shelf-renderer, ytmusic-shelf-renderer, ytmusic-grid-renderer');
 
   shelves.forEach(shelf => {
     const titleElement = shelf.querySelector('.title, yt-formatted-string.title');
-    
-    // By default, we hide the shelf
     let shouldShow = false;
 
     if (titleElement) {
       const titleText = titleElement.textContent.trim();
       
-      // Check against our allowed list
+      // If the title matches your allowed list, we show it
       if (allowedSections.includes(titleText)) {
         shouldShow = true;
       }
     }
 
-    // Apply visibility
     if (shouldShow) {
       shelf.style.display = ''; 
+      shelf.removeAttribute('data-yt-extension-hidden');
     } else {
       shelf.style.display = 'none';
+      // Mark it so we can easily unhide it later if we leave the home page
+      shelf.setAttribute('data-yt-extension-hidden', 'true');
     }
   });
 }
 
-// Function to retrieve settings
 function loadSettingsAndRun() {
   chrome.storage.sync.get(['allowedSections'], (result) => {
-    // Use saved settings, or the default list if nothing is saved yet
     allowedSections = result.allowedSections || defaultAllowed;
     cleanPage();
   });
 }
 
-// --- OBSERVER SETUP ---
-// This watches for ANY change on the page (scrolling, clicking links, loading)
 const observer = new MutationObserver(() => {
   cleanPage();
 });
@@ -83,10 +95,8 @@ observer.observe(document.body, {
   subtree: true
 });
 
-// Initial Run
 loadSettingsAndRun();
 
-// Update when you click "Save" in the popup
 chrome.runtime.onMessage.addListener((request) => {
   if (request.action === "updateLayout") {
     loadSettingsAndRun();
